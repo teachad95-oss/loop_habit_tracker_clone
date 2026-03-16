@@ -21,6 +21,13 @@ class HabitRepositoryImpl(
             frequencyNumerator = habit.frequencyNumerator,
             frequencyDenominator = habit.frequencyDenominator,
             daysInterval = habit.daysInterval,
+            question = habit.question,
+            unit = habit.unit,
+            target = habit.target,
+            targetType = habit.targetType,
+            reminder = habit.reminder,
+            penalty = habit.penalty,
+            notes = habit.notes,
             createdAt = habit.createdAt
         )
         return dao.insertHabit(entity)
@@ -34,6 +41,13 @@ class HabitRepositoryImpl(
             frequencyNumerator = habit.frequencyNumerator,
             frequencyDenominator = habit.frequencyDenominator,
             daysInterval = habit.daysInterval,
+            question = habit.question,
+            unit = habit.unit,
+            target = habit.target,
+            targetType = habit.targetType,
+            reminder = habit.reminder,
+            penalty = habit.penalty,
+            notes = habit.notes,
             createdAt = habit.createdAt
         )
         dao.deleteHabit(entity)
@@ -49,6 +63,13 @@ class HabitRepositoryImpl(
                     frequencyNumerator = entity.frequencyNumerator,
                     frequencyDenominator = entity.frequencyDenominator,
                     daysInterval = entity.daysInterval,
+                    question = entity.question,
+                    unit = entity.unit,
+                    target = entity.target,
+                    targetType = entity.targetType,
+                    reminder = entity.reminder,
+                    penalty = entity.penalty,
+                    notes = entity.notes,
                     createdAt = entity.createdAt
                 )
             }

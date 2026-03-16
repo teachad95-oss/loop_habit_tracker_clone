@@ -11,5 +11,12 @@ data class HabitEntity(
     val frequencyNumerator: Int,
     val frequencyDenominator: String, // "WEEK", "MONTH", "DAYS_INTERVAL"
     val daysInterval: Int, // Only used if denominator is "DAYS"
+    val question: String,
+    val unit: String,
+    val target: Float,
+    val targetType: String,
+    val reminder: String,
+    val penalty: Float,
+    val notes: String,
     val createdAt: Long // System.currentTimeMillis()
 )

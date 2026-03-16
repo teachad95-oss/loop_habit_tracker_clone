@@ -23,8 +23,42 @@ class AddEditHabitViewModel @Inject constructor(
     private val _habitColor = MutableStateFlow(Color.Blue.toArgb())
     val habitColor: StateFlow<Int> = _habitColor
 
-    fun onNameChanged(name: String) {
-        _habitName.value = name
+    private val _question = MutableStateFlow("")
+    val question: StateFlow<String> = _question
+
+    private val _unit = MutableStateFlow("")
+    val unit: StateFlow<String> = _unit
+
+    private val _target = MutableStateFlow("15") // Assuming "e.g. 15"
+    val target: StateFlow<String> = _target
+
+    private val _frequency = MutableStateFlow("Every day")
+    val frequency: StateFlow<String> = _frequency
+
+    private val _targetType = MutableStateFlow("At least")
+    val targetType: StateFlow<String> = _targetType
+
+    private val _reminder = MutableStateFlow("Off")
+    val reminder: StateFlow<String> = _reminder
+
+    private val _penalty = MutableStateFlow("")
+    val penalty: StateFlow<String> = _penalty
+
+    private val _notes = MutableStateFlow("")
+    val notes: StateFlow<String> = _notes
+
+    fun updateField(field: String, value: String) {
+        when (field) {
+            "name" -> _habitName.value = value
+            "question" -> _question.value = value
+            "unit" -> _unit.value = value
+            "target" -> _target.value = value
+            "frequency" -> _frequency.value = value
+            "targetType" -> _targetType.value = value
+            "reminder" -> _reminder.value = value
+            "penalty" -> _penalty.value = value
+            "notes" -> _notes.value = value
+        }
     }
 
     fun onColorChanged(color: Int) {
@@ -34,12 +68,23 @@ class AddEditHabitViewModel @Inject constructor(
     fun saveHabit(onComplete: () -> Unit) {
         viewModelScope.launch {
             if (_habitName.value.isNotBlank()) {
+                val parsedTarget = _target.value.toFloatOrNull() ?: 0f
+                val parsedPenalty = _penalty.value.toFloatOrNull() ?: 0f
+                val freqDenom = if (_frequency.value == "Every day") "DAY" else "WEEK"
+
                 val newHabit = Habit(
                     name = _habitName.value,
                     color = _habitColor.value,
-                    frequencyNumerator = 7,
-                    frequencyDenominator = "WEEK",
+                    frequencyNumerator = 7, // Default logic simplification
+                    frequencyDenominator = freqDenom,
                     daysInterval = 0,
+                    question = _question.value,
+                    unit = _unit.value,
+                    target = parsedTarget,
+                    targetType = _targetType.value,
+                    reminder = _reminder.value,
+                    penalty = parsedPenalty,
+                    notes = _notes.value,
                     createdAt = System.currentTimeMillis()
                 )
                 repository.insertHabit(newHabit)

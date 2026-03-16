@@ -20,7 +20,9 @@ object DatabaseModule {
             context,
             HabitDatabase::class.java,
             HabitDatabase.DATABASE_NAME
-        ).build()
+        )
+        .fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides
