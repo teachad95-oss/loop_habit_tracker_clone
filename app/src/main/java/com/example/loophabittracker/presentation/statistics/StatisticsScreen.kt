@@ -10,6 +10,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,6 +43,7 @@ fun StatisticsScreen(
     onNavigateToEdit: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val weekStart by viewModel.currentWeekStart.collectAsState()
 
     LaunchedEffect(habitId) {
         viewModel.loadStatistics(habitId)
@@ -71,25 +74,54 @@ fun StatisticsScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            val currentMonthStr = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-            val currentYearStr = LocalDate.now().year.toString()
+            val monthLabel = weekStart.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
-            // Overview Section
-            SectionTitle("Overview", habitColor)
+            // Week Selector Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
+            ) {
+                IconButton(onClick = { viewModel.previousWeek() }) {
+                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Week", tint = habitColor)
+                }
+                Text(
+                    text = "Week of $monthLabel ${weekStart.dayOfMonth}, ${weekStart.year}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = habitColor
+                )
+                IconButton(onClick = { viewModel.nextWeek() }) {
+                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Week", tint = habitColor)
+                }
+            }
+            Divider(modifier = Modifier.padding(bottom = 8.dp))
+
+            // Focus Week Overview
+            SectionTitle("Selected Week", habitColor)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OverviewStat("Target Hits", "${uiState.weekCompletions}", habitColor)
+                OverviewStat("Penalty Deductions", "-${String.format("%.0f", uiState.weekPenalty)}", Color.Red)
+            }
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+            // Lifetime Overview Section
+            SectionTitle("Lifetime Overview", habitColor)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 OverviewStat("Score", "${String.format("%.0f", uiState.strength)}%", habitColor)
-                OverviewStat("Month", "+${String.format("%.0f", uiState.scoreMonth)}%", habitColor)
-                OverviewStat("Year", "+${String.format("%.0f", uiState.scoreYear)}%", habitColor)
-                OverviewStat("Total", "${uiState.totalCompletions}", habitColor)
-                OverviewStat("Penalty", "-${String.format("%.0f", uiState.totalPenalty)}", Color.Red)
+                OverviewStat("Total Success", "${uiState.totalCompletions}", habitColor)
+                OverviewStat("Total Penalty", "-${String.format("%.0f", uiState.totalPenalty)}", Color.Red)
             }
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Score Chart
-            SectionTitle("Score ($currentMonthStr $currentYearStr)", habitColor)
+            SectionTitle("Trailing Score (30-day)", habitColor)
             if (uiState.recentScores.isNotEmpty()) {
                 val chartEntryModel = entryModelOf(*uiState.recentScores.toTypedArray())
                 Chart(
@@ -105,7 +137,7 @@ fun StatisticsScreen(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // History Chart
-            SectionTitle("History ($currentYearStr)", habitColor)
+            SectionTitle("Completions (6-Months)", habitColor)
             if (uiState.historyCounts.isNotEmpty()) {
                 val barEntryModel = entryModelOf(*uiState.historyCounts.toTypedArray())
                 Chart(
@@ -118,8 +150,8 @@ fun StatisticsScreen(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Calendar
-            SectionTitle("Calendar ($currentMonthStr $currentYearStr)", habitColor)
-            CalendarHeatmap(uiState.calendarRecords, habitColor)
+            SectionTitle("Calendar Output", habitColor)
+            CalendarHeatmap(uiState.calendarRecords, habitColor, weekStart)
         }
     }
 }
@@ -138,21 +170,20 @@ fun SectionTitle(title: String, color: Color) {
 @Composable
 fun OverviewStat(label: String, value: String, valueColor: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = value, color = valueColor, style = MaterialTheme.typography.titleMedium)
+        Text(text = value, color = valueColor, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Text(text = label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
-fun CalendarHeatmap(records: Map<Long, Boolean>, activeColor: Color) {
-    // A simplified continuous grid of 30 days
+fun CalendarHeatmap(records: Map<Long, Boolean>, activeColor: Color, weekStart: LocalDate) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(7),
         modifier = Modifier.fillMaxWidth().height(250.dp).padding(16.dp),
         userScrollEnabled = false
     ) {
         items(35) { i ->
-            val date = LocalDate.now().minusDays((34 - i).toLong())
+            val date = weekStart.plusDays(6).minusDays((34 - i).toLong())
             val isCompleted = records[date.toEpochDay()] == true
             Box(
                 modifier = Modifier

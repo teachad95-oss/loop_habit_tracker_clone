@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +43,21 @@ fun AddEditHabitScreen(
     val notes by viewModel.notes.collectAsState()
 
     var showColorPicker by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Habit") },
+            text = { Text("Are you sure you want to completely delete '${name}'? All history will be permanently lost.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteHabit(onNavigateBack) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     if (showColorPicker) {
         ColorPickerDialog(
@@ -63,6 +79,11 @@ fun AddEditHabitScreen(
                     }
                 },
                 actions = {
+                    if (viewModel.isExistingHabit) {
+                        IconButton(onClick = { showDeleteConfirmation = true }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete Habit")
+                        }
+                    }
                     TextButton(onClick = { viewModel.saveHabit(onComplete = onNavigateBack) }) {
                         Text("SAVE", color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }

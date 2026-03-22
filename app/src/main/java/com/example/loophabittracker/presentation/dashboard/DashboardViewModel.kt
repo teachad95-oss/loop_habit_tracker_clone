@@ -10,15 +10,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
 import javax.inject.Inject
 
 data class HabitUiModel(
     val habit: Habit,
-    val recentRecords: List<HabitRecord?> // last 7 days records
+    val recentRecords: List<HabitRecord?>, // Mon-Sun records
+    val activeDays: List<Boolean> // Parallel array determining if interactable
 )
 
 data class DailySummary(
@@ -31,39 +33,67 @@ class DashboardViewModel @Inject constructor(
     private val repository: HabitRepository
 ) : ViewModel() {
 
-    private val _currentDate = MutableStateFlow(LocalDate.now())
-    val currentDate: StateFlow<LocalDate> = _currentDate
+    private val _currentWeekStart = MutableStateFlow(LocalDate.now().with(DayOfWeek.MONDAY))
+    val currentWeekStart: StateFlow<LocalDate> = _currentWeekStart
+
+    fun previousWeek() {
+        _currentWeekStart.value = _currentWeekStart.value.minusWeeks(1)
+    }
+
+    fun nextWeek() {
+        _currentWeekStart.value = _currentWeekStart.value.plusWeeks(1)
+    }
+
+    private fun isHabitActive(habit: Habit, date: LocalDate): Boolean {
+        return when (habit.frequencyDenominator) {
+            "WEEK" -> {
+                if (habit.selectedDays.isBlank()) return true
+                habit.selectedDays.split(",").mapNotNull { it.toIntOrNull() }.contains(date.dayOfWeek.value)
+            }
+            "MONTH" -> {
+                if (habit.selectedDays.isBlank()) return true
+                habit.selectedDays.split(",").mapNotNull { it.toIntOrNull() }.contains(date.dayOfMonth)
+            }
+            else -> true
+        }
+    }
 
     val habitsWithRecords = combine(
         repository.getAllHabits(),
-        _currentDate
-    ) { habits, date ->
+        _currentWeekStart
+    ) { habits, weekStart ->
         habits.map { habit ->
             val records = repository.getRecordsForHabitSync(habit.id)
-            val recentRecords = (0L..6L).map { daysAgo ->
-                val targetDate = date.toEpochDay() - daysAgo
-                records.find { it.date == targetDate }
-            }.reversed()
             
-            HabitUiModel(habit, recentRecords)
+            val recentRecords = mutableListOf<HabitRecord?>()
+            val activeDays = mutableListOf<Boolean>()
+            
+            for (i in 0..6) {
+                val date = weekStart.plusDays(i.toLong())
+                activeDays.add(isHabitActive(habit, date))
+                recentRecords.add(records.find { it.date == date.toEpochDay() })
+            }
+            
+            HabitUiModel(habit, recentRecords, activeDays)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val dailySummaries = combine(
         habitsWithRecords,
-        _currentDate
-    ) { habitsData, date ->
+        _currentWeekStart
+    ) { habitsData, _ ->
         val summaries = mutableListOf<DailySummary>()
-        // Calculate for daysAgo from 6 downTo 0 to align with UI columns
-        for (i in 6 downTo 0) {
+        for (i in 0..6) {
             var missed = 0
             var penaltySum = 0f
             
             habitsData.forEach { model ->
-                val recordForDay = model.recentRecords[6 - i]
-                if (recordForDay != null && !recordForDay.isCompleted) {
-                    missed++
-                    penaltySum += model.habit.penalty
+                if (model.activeDays[i]) {
+                    val recordForDay = model.recentRecords[i]
+                    if (recordForDay != null && !recordForDay.isCompleted) {
+                        missed++
+                        penaltySum += model.habit.penalty
+                    }
                 }
             }
             summaries.add(DailySummary(missedCount = missed, totalPenalty = penaltySum))
@@ -71,9 +101,9 @@ class DashboardViewModel @Inject constructor(
         summaries
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), List(7) { DailySummary(0, 0f) })
 
-    fun updateHabitValue(habitId: Int, daysAgo: Int, value: Float?) {
+    fun updateHabitValue(habitId: Int, dayOffsetIndex: Int, value: Float?) {
         viewModelScope.launch {
-            val dateEpoch = _currentDate.value.toEpochDay() - daysAgo
+            val dateEpoch = _currentWeekStart.value.plusDays(dayOffsetIndex.toLong()).toEpochDay()
             val existingRecord = repository.getRecordForHabitOnDate(habitId, dateEpoch)
             
             val habit = repository.getAllHabits().first().find { it.id == habitId } ?: return@launch
@@ -81,7 +111,7 @@ class DashboardViewModel @Inject constructor(
             val isCompleted = if (habit.isMeasurable) {
                 value != null && value >= habit.target
             } else {
-                value != null && value > 0f // In yes/no, value > 0 means Yes
+                value != null && value > 0f 
             }
             
             val recordToInsert = HabitRecord(

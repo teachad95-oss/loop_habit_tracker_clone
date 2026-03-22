@@ -21,6 +21,7 @@ class AddEditHabitViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val habitId: Int = savedStateHandle.get<Int>("habitId") ?: -1
+    val isExistingHabit: Boolean = habitId != -1
 
     private val _habitName = MutableStateFlow("")
     val habitName: StateFlow<String> = _habitName
@@ -153,6 +154,18 @@ class AddEditHabitViewModel @Inject constructor(
                 // For a proper edit we'd fetch the old one to preserve createdAt, but Room ignores unchanged primary key on Insert(Replace). 
                 // We're appending so let it override for now. (Or we could fetch old habit and reuse createdAt)
                 repository.insertHabit(newHabit)
+                onComplete()
+            }
+        }
+    }
+
+    fun deleteHabit(onComplete: () -> Unit) {
+        if (habitId != -1) {
+            viewModelScope.launch {
+                val habit = repository.getAllHabits().first().find { it.id == habitId }
+                if (habit != null) {
+                    repository.deleteHabit(habit)
+                }
                 onComplete()
             }
         }
