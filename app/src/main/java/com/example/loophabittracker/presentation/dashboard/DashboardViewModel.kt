@@ -21,6 +21,11 @@ data class HabitUiModel(
     val recentRecords: List<HabitRecord?> // last 7 days records
 )
 
+data class DailySummary(
+    val missedCount: Int,
+    val totalPenalty: Float
+)
+
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val repository: HabitRepository
@@ -44,39 +49,47 @@ class DashboardViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun toggleHabit(habitId: Int, daysAgo: Int) {
-        viewModelScope.launch {
-            val dateEpoch = _currentDate.value.toEpochDay() - daysAgo
-            val existingRecord = repository.getRecordForHabitOnDate(habitId, dateEpoch)
+    val dailySummaries = combine(
+        habitsWithRecords,
+        _currentDate
+    ) { habitsData, date ->
+        val summaries = mutableListOf<DailySummary>()
+        // Calculate for daysAgo from 6 downTo 0 to align with UI columns
+        for (i in 6 downTo 0) {
+            var missed = 0
+            var penaltySum = 0f
             
-            val newIsCompleted = if (existingRecord != null) !existingRecord.isCompleted else true
-            
-            val recordToInsert = HabitRecord(
-                id = existingRecord?.id ?: 0,
-                habitId = habitId,
-                date = dateEpoch,
-                isCompleted = newIsCompleted,
-                value = existingRecord?.value ?: 0f,
-                timestamp = System.currentTimeMillis()
-            )
-            repository.insertRecord(recordToInsert)
+            habitsData.forEach { model ->
+                val recordForDay = model.recentRecords[6 - i]
+                if (recordForDay != null && !recordForDay.isCompleted) {
+                    missed++
+                    penaltySum += model.habit.penalty
+                }
+            }
+            summaries.add(DailySummary(missedCount = missed, totalPenalty = penaltySum))
         }
-    }
+        summaries
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), List(7) { DailySummary(0, 0f) })
 
-    fun updateHabitValue(habitId: Int, daysAgo: Int, value: Float) {
+    fun updateHabitValue(habitId: Int, daysAgo: Int, value: Float?) {
         viewModelScope.launch {
             val dateEpoch = _currentDate.value.toEpochDay() - daysAgo
             val existingRecord = repository.getRecordForHabitOnDate(habitId, dateEpoch)
             
-            val habit = repository.getAllHabits().first().find { it.id == habitId }
-            val isCompleted = habit != null && value >= habit.target
+            val habit = repository.getAllHabits().first().find { it.id == habitId } ?: return@launch
+            
+            val isCompleted = if (habit.isMeasurable) {
+                value != null && value >= habit.target
+            } else {
+                value != null && value > 0f // In yes/no, value > 0 means Yes
+            }
             
             val recordToInsert = HabitRecord(
                 id = existingRecord?.id ?: 0,
                 habitId = habitId,
                 date = dateEpoch,
                 isCompleted = isCompleted,
-                value = value,
+                value = value ?: (existingRecord?.value ?: 0f),
                 timestamp = System.currentTimeMillis()
             )
             repository.insertRecord(recordToInsert)

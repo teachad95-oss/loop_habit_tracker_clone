@@ -1,9 +1,14 @@
 package com.example.loophabittracker.presentation.add_edit_habit
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -11,7 +16,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -28,15 +35,28 @@ fun AddEditHabitScreen(
     val unit by viewModel.unit.collectAsState()
     val target by viewModel.target.collectAsState()
     val frequency by viewModel.frequency.collectAsState()
+    val selectedDays by viewModel.selectedDays.collectAsState()
     val targetType by viewModel.targetType.collectAsState()
     val reminder by viewModel.reminder.collectAsState()
     val penalty by viewModel.penalty.collectAsState()
     val notes by viewModel.notes.collectAsState()
 
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    if (showColorPicker) {
+        ColorPickerDialog(
+            onColorSelected = { 
+                viewModel.onColorChanged(it.toArgb())
+                showColorPicker = false
+            },
+            onDismiss = { showColorPicker = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create habit") },
+                title = { Text(if (name.isNotEmpty()) "Edit Habit" else "Create habit") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -77,7 +97,7 @@ fun AddEditHabitScreen(
                         modifier = Modifier
                             .size(56.dp)
                             .background(Color(color), MaterialTheme.shapes.small)
-                            .clickable { /* TBD: Add Color Picker Dropdown */ }
+                            .clickable { showColorPicker = true }
                     )
                 }
             }
@@ -143,14 +163,6 @@ fun AddEditHabitScreen(
                     onValueChange = { viewModel.updateField("targetType", it) },
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                OutlinedTextField(
-                    value = penalty,
-                    onValueChange = { viewModel.updateField("penalty", it) },
-                    label = { Text("Penalty Value") },
-                    placeholder = { Text("Optional penalty deduction if goal missed") },
-                    modifier = Modifier.fillMaxWidth()
-                )
             } else {
                 SimpleDropdown(
                     label = "Frequency",
@@ -160,6 +172,60 @@ fun AddEditHabitScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+
+            // Scheduling Selector
+            if (frequency == "Every week") {
+                Text("Select active days:", style = MaterialTheme.typography.bodyMedium)
+                val daysOfWeek = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    daysOfWeek.forEachIndexed { index, day ->
+                        val isSelected = selectedDays.contains(index + 1)
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                .clickable { viewModel.toggleDaySelection(index + 1) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(day.take(1), color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            } else if (frequency == "Every month") {
+                Text("Select active dates:", style = MaterialTheme.typography.bodyMedium)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(7),
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items((1..31).toList()) { date ->
+                        val isSelected = selectedDays.contains(date)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                .clickable { viewModel.toggleDaySelection(date) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(date.toString(), style = MaterialTheme.typography.bodySmall, color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+
+            // Universal Fields
+            OutlinedTextField(
+                value = penalty,
+                onValueChange = { viewModel.updateField("penalty", it) },
+                label = { Text("Penalty Value") },
+                placeholder = { Text("Optional penalty deduction if goal missed") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             SimpleDropdown(
                 label = "Reminder",
@@ -221,4 +287,54 @@ fun SimpleDropdown(
             }
         }
     }
+}
+
+@Composable
+fun ColorPickerDialog(
+    onColorSelected: (Color) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val presetColors = listOf(
+        Color(0xFFF44336), // Red
+        Color(0xFFE91E63), // Pink
+        Color(0xFF9C27B0), // Purple
+        Color(0xFF673AB7), // Deep Purple
+        Color(0xFF3F51B5), // Indigo
+        Color(0xFF2196F3), // Blue
+        Color(0xFF03A9F4), // Light Blue
+        Color(0xFF00BCD4), // Cyan
+        Color(0xFF009688), // Teal
+        Color(0xFF4CAF50), // Green
+        Color(0xFF8BC34A), // Light Green
+        Color(0xFFCDDC39), // Lime
+        Color(0xFFFFEB3B), // Yellow
+        Color(0xFFFFC107), // Amber
+        Color(0xFFFF9800), // Orange
+        Color(0xFFFF5722)  // Deep Orange
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose a color") },
+        text = {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(presetColors) { color ->
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(color)
+                            .clickable { onColorSelected(color) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

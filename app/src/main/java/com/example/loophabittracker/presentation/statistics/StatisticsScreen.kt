@@ -29,13 +29,16 @@ import com.patrykandpatrick.vico.compose.chart.line.lineChart
 import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
 import com.patrykandpatrick.vico.core.entry.entryModelOf
 import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StatisticsScreen(
     habitId: Int,
     viewModel: StatisticsViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToEdit: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -55,7 +58,7 @@ fun StatisticsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Edit */ }) { Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White) }
+                    IconButton(onClick = onNavigateToEdit) { Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.White) }
                     IconButton(onClick = { /* TODO: More */ }) { Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Color.White) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = habitColor, titleContentColor = Color.White)
@@ -68,6 +71,9 @@ fun StatisticsScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
+            val currentMonthStr = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            val currentYearStr = LocalDate.now().year.toString()
+
             // Overview Section
             SectionTitle("Overview", habitColor)
             Row(
@@ -78,11 +84,12 @@ fun StatisticsScreen(
                 OverviewStat("Month", "+${String.format("%.0f", uiState.scoreMonth)}%", habitColor)
                 OverviewStat("Year", "+${String.format("%.0f", uiState.scoreYear)}%", habitColor)
                 OverviewStat("Total", "${uiState.totalCompletions}", habitColor)
+                OverviewStat("Penalty", "-${String.format("%.0f", uiState.totalPenalty)}", Color.Red)
             }
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Score Chart
-            SectionTitle("Score", habitColor)
+            SectionTitle("Score ($currentMonthStr $currentYearStr)", habitColor)
             if (uiState.recentScores.isNotEmpty()) {
                 val chartEntryModel = entryModelOf(*uiState.recentScores.toTypedArray())
                 Chart(
@@ -98,7 +105,7 @@ fun StatisticsScreen(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // History Chart
-            SectionTitle("History", habitColor)
+            SectionTitle("History ($currentYearStr)", habitColor)
             if (uiState.historyCounts.isNotEmpty()) {
                 val barEntryModel = entryModelOf(*uiState.historyCounts.toTypedArray())
                 Chart(
@@ -111,7 +118,7 @@ fun StatisticsScreen(
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Calendar
-            SectionTitle("Calendar", habitColor)
+            SectionTitle("Calendar ($currentMonthStr $currentYearStr)", habitColor)
             CalendarHeatmap(uiState.calendarRecords, habitColor)
         }
     }

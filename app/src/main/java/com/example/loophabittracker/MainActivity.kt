@@ -40,7 +40,10 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-                        composable("add_habit") {
+                        composable(
+                            route = "add_habit?habitId={habitId}",
+                            arguments = listOf(navArgument("habitId") { type = NavType.IntType; defaultValue = -1 })
+                        ) { backStackEntry ->
                             AddEditHabitScreen(
                                 onNavigateBack = { navController.popBackStack() }
                             )
@@ -52,7 +55,8 @@ class MainActivity : ComponentActivity() {
                             val habitId = backStackEntry.arguments?.getInt("habitId") ?: return@composable
                             StatisticsScreen(
                                 habitId = habitId,
-                                onNavigateBack = { navController.popBackStack() }
+                                onNavigateBack = { navController.popBackStack() },
+                                onNavigateToEdit = { navController.navigate("add_habit?habitId=$habitId") }
                             )
                         }
                     }

@@ -11,6 +11,7 @@ data class HabitEntity(
     val frequencyNumerator: Int,
     val frequencyDenominator: String, // "WEEK", "MONTH", "DAYS_INTERVAL"
     val daysInterval: Int, // Only used if denominator is "DAYS"
+    val selectedDays: String, // Comma separated integers
     val isMeasurable: Boolean,
     val question: String,
     val unit: String,

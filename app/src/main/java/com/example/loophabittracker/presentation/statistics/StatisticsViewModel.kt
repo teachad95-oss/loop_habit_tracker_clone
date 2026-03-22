@@ -21,6 +21,7 @@ data class StatisticsUiState(
     val scoreMonth: Float = 0f,
     val scoreYear: Float = 0f,
     val totalCompletions: Int = 0,
+    val totalPenalty: Float = 0f,
     val recentScores: List<Float> = emptyList(),
     val historyCounts: List<Float> = emptyList(),
     val calendarRecords: Map<Long, Boolean> = emptyMap()
@@ -43,6 +44,7 @@ class StatisticsViewModel @Inject constructor(
                 val records = repository.getRecordsForHabitSync(habitId)
                 val strength = calculateHabitStrength(records)
                 val totalCompletions = records.count { it.isCompleted }
+                val totalPenalty = records.filter { !it.isCompleted }.sumOf { habit.penalty.toDouble() }.toFloat()
                 
                 // Mock historical scores based on trailing calculations for the line chart (last 30 days)
                 val recentScores = mutableListOf<Float>()
@@ -67,6 +69,7 @@ class StatisticsViewModel @Inject constructor(
                     scoreMonth = recentScores.lastOrNull() ?: 0f,
                     scoreYear = recentScores.lastOrNull() ?: 0f, // Simplified
                     totalCompletions = totalCompletions,
+                    totalPenalty = totalPenalty,
                     recentScores = recentScores,
                     historyCounts = historyCounts,
                     calendarRecords = calendarRecords

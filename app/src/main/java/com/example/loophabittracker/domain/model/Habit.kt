@@ -7,6 +7,7 @@ data class Habit(
     val frequencyNumerator: Int,
     val frequencyDenominator: String,
     val daysInterval: Int,
+    val selectedDays: String = "",
     val isMeasurable: Boolean = false,
     val question: String = "",
     val unit: String = "",
