@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -92,8 +91,8 @@ fun StatisticsScreen(
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Month", tint = habitColor)
                     }
                 }
-                IconButton(onClick = { viewModel.resetToCurrentMonth() }) {
-                    Icon(Icons.Default.Today, contentDescription = "Current Month", tint = habitColor)
+                TextButton(onClick = { viewModel.resetToCurrentMonth() }) {
+                    Text("TODAY", color = habitColor, fontWeight = FontWeight.Bold)
                 }
             }
             Divider(modifier = Modifier.padding(bottom = 8.dp))

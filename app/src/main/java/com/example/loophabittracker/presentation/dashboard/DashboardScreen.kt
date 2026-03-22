@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.loophabittracker.domain.model.Habit
+import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -80,8 +80,8 @@ fun DashboardScreen(
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Week")
                     }
                 }
-                IconButton(onClick = { viewModel.resetToCurrentWeek() }) {
-                    Icon(Icons.Default.Today, contentDescription = "Current Week")
+                TextButton(onClick = { viewModel.resetToCurrentWeek() }) {
+                    Text("TODAY", fontWeight = FontWeight.Bold)
                 }
             }
 
