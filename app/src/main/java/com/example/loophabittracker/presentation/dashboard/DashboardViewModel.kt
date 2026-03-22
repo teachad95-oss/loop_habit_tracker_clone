@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -17,7 +18,7 @@ import javax.inject.Inject
 
 data class HabitUiModel(
     val habit: Habit,
-    val recentRecords: List<Boolean> // last 7 days completion status
+    val recentRecords: List<HabitRecord?> // last 7 days records
 )
 
 @HiltViewModel
@@ -36,7 +37,7 @@ class DashboardViewModel @Inject constructor(
             val records = repository.getRecordsForHabitSync(habit.id)
             val recentRecords = (0L..6L).map { daysAgo ->
                 val targetDate = date.toEpochDay() - daysAgo
-                records.find { it.date == targetDate }?.isCompleted == true
+                records.find { it.date == targetDate }
             }.reversed()
             
             HabitUiModel(habit, recentRecords)
@@ -55,6 +56,27 @@ class DashboardViewModel @Inject constructor(
                 habitId = habitId,
                 date = dateEpoch,
                 isCompleted = newIsCompleted,
+                value = existingRecord?.value ?: 0f,
+                timestamp = System.currentTimeMillis()
+            )
+            repository.insertRecord(recordToInsert)
+        }
+    }
+
+    fun updateHabitValue(habitId: Int, daysAgo: Int, value: Float) {
+        viewModelScope.launch {
+            val dateEpoch = _currentDate.value.toEpochDay() - daysAgo
+            val existingRecord = repository.getRecordForHabitOnDate(habitId, dateEpoch)
+            
+            val habit = repository.getAllHabits().first().find { it.id == habitId }
+            val isCompleted = habit != null && value >= habit.target
+            
+            val recordToInsert = HabitRecord(
+                id = existingRecord?.id ?: 0,
+                habitId = habitId,
+                date = dateEpoch,
+                isCompleted = isCompleted,
+                value = value,
                 timestamp = System.currentTimeMillis()
             )
             repository.insertRecord(recordToInsert)

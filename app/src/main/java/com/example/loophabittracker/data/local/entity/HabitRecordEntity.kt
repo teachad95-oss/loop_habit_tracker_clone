@@ -22,5 +22,6 @@ data class HabitRecordEntity(
     val habitId: Int,
     val date: Long, // Epoch day
     val isCompleted: Boolean,
+    val value: Float,
     val timestamp: Long // System.currentTimeMillis() when recorded
 )

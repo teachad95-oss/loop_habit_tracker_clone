@@ -21,6 +21,7 @@ class HabitRepositoryImpl(
             frequencyNumerator = habit.frequencyNumerator,
             frequencyDenominator = habit.frequencyDenominator,
             daysInterval = habit.daysInterval,
+            isMeasurable = habit.isMeasurable,
             question = habit.question,
             unit = habit.unit,
             target = habit.target,
@@ -41,6 +42,7 @@ class HabitRepositoryImpl(
             frequencyNumerator = habit.frequencyNumerator,
             frequencyDenominator = habit.frequencyDenominator,
             daysInterval = habit.daysInterval,
+            isMeasurable = habit.isMeasurable,
             question = habit.question,
             unit = habit.unit,
             target = habit.target,
@@ -63,6 +65,7 @@ class HabitRepositoryImpl(
                     frequencyNumerator = entity.frequencyNumerator,
                     frequencyDenominator = entity.frequencyDenominator,
                     daysInterval = entity.daysInterval,
+                    isMeasurable = entity.isMeasurable,
                     question = entity.question,
                     unit = entity.unit,
                     target = entity.target,
@@ -82,6 +85,7 @@ class HabitRepositoryImpl(
             habitId = record.habitId,
             date = record.date,
             isCompleted = record.isCompleted,
+            value = record.value,
             timestamp = record.timestamp
         )
         dao.insertRecord(entity)
@@ -90,19 +94,19 @@ class HabitRepositoryImpl(
     override fun getRecordsForHabit(habitId: Int): Flow<List<HabitRecord>> {
         return dao.getRecordsForHabit(habitId).map { entities ->
             entities.map {
-                HabitRecord(it.id, it.habitId, it.date, it.isCompleted, it.timestamp)
+                HabitRecord(it.id, it.habitId, it.date, it.isCompleted, it.value, it.timestamp)
             }
         }
     }
 
     override suspend fun getRecordsForHabitSync(habitId: Int): List<HabitRecord> {
         return dao.getRecordsForHabitSync(habitId).map {
-            HabitRecord(it.id, it.habitId, it.date, it.isCompleted, it.timestamp)
+            HabitRecord(it.id, it.habitId, it.date, it.isCompleted, it.value, it.timestamp)
         }
     }
 
     override suspend fun getRecordForHabitOnDate(habitId: Int, date: Long): HabitRecord? {
         val entity = dao.getRecordForHabitOnDate(habitId, date) ?: return null
-        return HabitRecord(entity.id, entity.habitId, entity.date, entity.isCompleted, entity.timestamp)
+        return HabitRecord(entity.id, entity.habitId, entity.date, entity.isCompleted, entity.value, entity.timestamp)
     }
 }

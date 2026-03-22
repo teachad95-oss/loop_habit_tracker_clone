@@ -23,6 +23,9 @@ class AddEditHabitViewModel @Inject constructor(
     private val _habitColor = MutableStateFlow(Color.Blue.toArgb())
     val habitColor: StateFlow<Int> = _habitColor
 
+    private val _isMeasurable = MutableStateFlow(true)
+    val isMeasurable: StateFlow<Boolean> = _isMeasurable
+
     private val _question = MutableStateFlow("")
     val question: StateFlow<String> = _question
 
@@ -46,6 +49,10 @@ class AddEditHabitViewModel @Inject constructor(
 
     private val _notes = MutableStateFlow("")
     val notes: StateFlow<String> = _notes
+
+    fun updateBoolean(field: String, value: Boolean) {
+        if (field == "isMeasurable") _isMeasurable.value = value
+    }
 
     fun updateField(field: String, value: String) {
         when (field) {
@@ -78,6 +85,7 @@ class AddEditHabitViewModel @Inject constructor(
                     frequencyNumerator = 7, // Default logic simplification
                     frequencyDenominator = freqDenom,
                     daysInterval = 0,
+                    isMeasurable = _isMeasurable.value,
                     question = _question.value,
                     unit = _unit.value,
                     target = parsedTarget,

@@ -5,5 +5,6 @@ data class HabitRecord(
     val habitId: Int,
     val date: Long,
     val isCompleted: Boolean,
+    val value: Float = 0f,
     val timestamp: Long
 )

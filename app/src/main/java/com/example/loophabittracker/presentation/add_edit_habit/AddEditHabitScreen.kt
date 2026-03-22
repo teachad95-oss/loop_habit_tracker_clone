@@ -23,6 +23,7 @@ fun AddEditHabitScreen(
 ) {
     val name by viewModel.habitName.collectAsState()
     val color by viewModel.habitColor.collectAsState()
+    val isMeasurable by viewModel.isMeasurable.collectAsState()
     val question by viewModel.question.collectAsState()
     val unit by viewModel.unit.collectAsState()
     val target by viewModel.target.collectAsState()
@@ -89,53 +90,82 @@ fun AddEditHabitScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = unit,
-                onValueChange = { viewModel.updateField("unit", it) },
-                label = { Text("Unit") },
-                placeholder = { Text("e.g. miles") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
+            // Habit Type Toggle
+            Text("Habit Type", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = !isMeasurable,
+                        onClick = { viewModel.updateBoolean("isMeasurable", false) }
+                    )
+                    Text("Yes/No", modifier = Modifier.clickable { viewModel.updateBoolean("isMeasurable", false) })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(
+                        selected = isMeasurable,
+                        onClick = { viewModel.updateBoolean("isMeasurable", true) }
+                    )
+                    Text("Measurable", modifier = Modifier.clickable { viewModel.updateBoolean("isMeasurable", true) })
+                }
+            }
+
+            if (isMeasurable) {
                 OutlinedTextField(
-                    value = target,
-                    onValueChange = { viewModel.updateField("target", it) },
-                    label = { Text("Target") },
-                    placeholder = { Text("e.g. 15") },
-                    modifier = Modifier.weight(1f)
+                    value = unit,
+                    onValueChange = { viewModel.updateField("unit", it) },
+                    label = { Text("Unit") },
+                    placeholder = { Text("e.g. miles") },
+                    modifier = Modifier.fillMaxWidth()
                 )
 
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    OutlinedTextField(
+                        value = target,
+                        onValueChange = { viewModel.updateField("target", it) },
+                        label = { Text("Target") },
+                        placeholder = { Text("e.g. 15") },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    SimpleDropdown(
+                        label = "Frequency",
+                        options = listOf("Every day", "Every week", "Every month"),
+                        selectedValue = frequency,
+                        onValueChange = { viewModel.updateField("frequency", it) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                SimpleDropdown(
+                    label = "Target Type",
+                    options = listOf("At least", "At most", "Exactly"),
+                    selectedValue = targetType,
+                    onValueChange = { viewModel.updateField("targetType", it) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                OutlinedTextField(
+                    value = penalty,
+                    onValueChange = { viewModel.updateField("penalty", it) },
+                    label = { Text("Penalty Value") },
+                    placeholder = { Text("Optional penalty deduction if goal missed") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
                 SimpleDropdown(
                     label = "Frequency",
                     options = listOf("Every day", "Every week", "Every month"),
                     selectedValue = frequency,
                     onValueChange = { viewModel.updateField("frequency", it) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-
-            SimpleDropdown(
-                label = "Target Type",
-                options = listOf("At least", "At most", "Exactly"),
-                selectedValue = targetType,
-                onValueChange = { viewModel.updateField("targetType", it) },
-                modifier = Modifier.fillMaxWidth()
-            )
 
             SimpleDropdown(
                 label = "Reminder",
                 options = listOf("Off", "Custom Time"),
                 selectedValue = reminder,
                 onValueChange = { viewModel.updateField("reminder", it) },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            OutlinedTextField(
-                value = penalty,
-                onValueChange = { viewModel.updateField("penalty", it) },
-                label = { Text("Penalty Value") },
-                placeholder = { Text("Optional penalty deduction if goal missed") },
                 modifier = Modifier.fillMaxWidth()
             )
 
