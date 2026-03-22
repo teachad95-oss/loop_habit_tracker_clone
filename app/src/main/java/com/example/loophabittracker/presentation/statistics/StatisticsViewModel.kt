@@ -12,23 +12,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.first
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
+data class CalendarDayData(
+    val date: LocalDate,
+    val value: Float?, // null if no record
+    val isCompleted: Boolean,
+    val isMissed: Boolean,
+    val penalty: Float,
+    val isFuture: Boolean
+)
+
 data class UiState(
     val habit: Habit? = null,
-    val strength: Float = 0f,
-    val scoreMonth: Float = 0f,
-    val scoreYear: Float = 0f,
-    val totalCompletions: Int = 0,
+    val totalDaysInMonth: Int = 0,
+    val totalFailures: Int = 0,
     val totalPenalty: Float = 0f,
-    val weekCompletions: Int = 0,
-    val weekPenalty: Float = 0f,
-    val recentScores: List<Float> = emptyList(),
-    val historyCounts: List<Float> = emptyList(),
-    val calendarRecords: Map<Long, Boolean> = emptyMap()
+    val calendarData: List<CalendarDayData> = emptyList()
 )
 
 @HiltViewModel
@@ -38,82 +40,100 @@ class StatisticsViewModel @Inject constructor(
 
     private val _habitId = MutableStateFlow(-1)
     
-    private val _currentWeekStart = MutableStateFlow(LocalDate.now().with(DayOfWeek.MONDAY))
-    val currentWeekStart: StateFlow<LocalDate> = _currentWeekStart
+    private val _currentMonth = MutableStateFlow(YearMonth.now())
+    val currentMonth: StateFlow<YearMonth> = _currentMonth
 
-    fun previousWeek() { _currentWeekStart.value = _currentWeekStart.value.minusWeeks(1) }
-    fun nextWeek() { _currentWeekStart.value = _currentWeekStart.value.plusWeeks(1) }
+    fun previousMonth() { _currentMonth.value = _currentMonth.value.minusMonths(1) }
+    fun nextMonth() { _currentMonth.value = _currentMonth.value.plusMonths(1) }
+    fun resetToCurrentMonth() { _currentMonth.value = YearMonth.now() }
 
     fun loadStatistics(habitId: Int) {
         _habitId.value = habitId
     }
 
-    val uiState = combine(_habitId, _currentWeekStart) { habitId, weekStart ->
+    private fun isHabitActive(habit: Habit, date: LocalDate): Boolean {
+        // Shared logic with DashboardViewModel to determine if target applies this day
+        return when (habit.frequencyDenominator) {
+            "WEEK" -> {
+                if (habit.selectedDays.isBlank()) return true
+                habit.selectedDays.split(",").mapNotNull { it.toIntOrNull() }.contains(date.dayOfWeek.value)
+            }
+            "MONTH" -> {
+                if (habit.selectedDays.isBlank()) return true
+                habit.selectedDays.split(",").mapNotNull { it.toIntOrNull() }.contains(date.dayOfMonth)
+            }
+            else -> true
+        }
+    }
+
+    val uiState = combine(_habitId, _currentMonth) { habitId, monthVar ->
         if (habitId == -1) return@combine UiState()
 
         val habit = repository.getAllHabits().first().find { it.id == habitId } ?: return@combine UiState()
         val allRecords = repository.getRecordsForHabitSync(habitId)
         
-        val weekEnd = weekStart.plusDays(6)
-        val weekEndEpoch = weekEnd.toEpochDay()
-        val weekStartEpoch = weekStart.toEpochDay()
+        val monthStartEpoch = monthVar.atDay(1).toEpochDay()
+        val monthEndEpoch = monthVar.atEndOfMonth().toEpochDay()
+        
+        val monthRecords = allRecords.filter { it.date in monthStartEpoch..monthEndEpoch }
 
-        // Lifetimes
-        val strength = calculateHabitStrength(allRecords)
-        val totalCompletions = allRecords.count { it.isCompleted }
-        val totalPenalty = allRecords.filter { !it.isCompleted }.sumOf { habit.penalty.toDouble() }.toFloat()
+        val calendarData = mutableListOf<CalendarDayData>()
+        var activeDaysCount = 0
+        var totalFailures = 0
+        var totalPenalty = 0f
 
-        // Selected Week Specifics
-        val weekRecords = allRecords.filter { it.date in weekStartEpoch..weekEndEpoch }
-        val weekCompletions = weekRecords.count { it.isCompleted }
-        val weekPenalty = weekRecords.filter { !it.isCompleted }.sumOf { habit.penalty.toDouble() }.toFloat()
+        for (i in 1..monthVar.lengthOfMonth()) {
+            val date = monthVar.atDay(i)
+            val isFuture = date.isAfter(LocalDate.now())
+            val record = monthRecords.find { it.date == date.toEpochDay() }
+            val isActive = isHabitActive(habit, date)
+            
+            var isCompleted = false
+            var isMissed = false
+            var appliedPenalty = 0f
 
-        // Mock historical scores trailing from End-Of-Week
-        val recentScores = mutableListOf<Float>()
-        for (i in 30 downTo 0) {
-            val target = weekEnd.minusDays(i.toLong()).toEpochDay()
-            val filtered = allRecords.filter { it.date <= target }
-            recentScores.add(calculateHabitStrength(filtered))
+            if (isActive && !isFuture) {
+                activeDaysCount++
+                if (record != null) {
+                    if (record.isCompleted) {
+                        isCompleted = true
+                    } else {
+                        isMissed = true
+                        appliedPenalty = habit.penalty
+                        totalFailures++
+                        totalPenalty += appliedPenalty
+                    }
+                } else {
+                    // Implicitly missed if there is no record logged for an active past day?
+                    // Typically missing logs might count as Missed for stats, let's say Yes.
+                    isMissed = true
+                    appliedPenalty = habit.penalty
+                    totalFailures++
+                    totalPenalty += appliedPenalty
+                }
+            } else if (isActive && isFuture) {
+               // active but future, just count as total days possible? 
+               activeDaysCount++
+            }
+            
+            calendarData.add(
+                CalendarDayData(
+                    date = date,
+                    value = record?.value,
+                    isCompleted = isCompleted,
+                    isMissed = isMissed,
+                    penalty = appliedPenalty,
+                    isFuture = isFuture
+                )
+            )
         }
-
-        // Mock history bar chart trailing from the month of the End-Of-Week
-        val historyCounts = mutableListOf<Float>()
-        for (i in 5 downTo 0) { // last 6 months
-            val targetMonth = weekEnd.minusMonths(i.toLong())
-            val yM = YearMonth.from(targetMonth)
-            val monthEndEpoch = yM.atEndOfMonth().toEpochDay()
-            val monthStartEpoch = yM.atDay(1).toEpochDay()
-            val c = allRecords.count { it.date in monthStartEpoch..monthEndEpoch && it.isCompleted }
-            historyCounts.add(c.toFloat())
-        }
-
-        // Calendar Map relative for heatmap plotting if needed, but we can pass all
-        val calendarRecords = allRecords.associate { it.date to it.isCompleted }
 
         UiState(
             habit = habit,
-            strength = strength,
-            scoreMonth = recentScores.lastOrNull() ?: 0f,
-            scoreYear = recentScores.lastOrNull() ?: 0f,
-            totalCompletions = totalCompletions,
+            totalDaysInMonth = activeDaysCount,
+            totalFailures = totalFailures,
             totalPenalty = totalPenalty,
-            weekCompletions = weekCompletions,
-            weekPenalty = weekPenalty,
-            recentScores = recentScores,
-            historyCounts = historyCounts,
-            calendarRecords = calendarRecords
+            calendarData = calendarData
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UiState())
-
-    private fun calculateHabitStrength(records: List<HabitRecord>): Float {
-        // Simplified scoring
-        var score = 0f
-        val sorted = records.sortedBy { it.date }
-        for (rec in sorted) {
-            if (rec.isCompleted) score += 5f else score -= 2f
-            if (score > 100f) score = 100f
-            if (score < 0f) score = 0f
-        }
-        return score
-    }
 }

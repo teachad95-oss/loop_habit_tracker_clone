@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,12 +44,18 @@ fun DashboardScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Habits") })
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAddHabit) {
-                Icon(Icons.Default.Add, contentDescription = "Add Habit")
-            }
+            TopAppBar(
+                title = { Text("Habits") },
+                actions = {
+                    IconButton(onClick = onNavigateToAddHabit) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Habit", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = Color.White
+                )
+            )
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -59,17 +66,22 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
             ) {
-                IconButton(onClick = { viewModel.previousWeek() }) {
-                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Week")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { viewModel.previousWeek() }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Week")
+                    }
+                    val monthLabel = weekStart.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                    Text(
+                        text = "$monthLabel ${weekStart.year}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = { viewModel.nextWeek() }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Week")
+                    }
                 }
-                val monthLabel = weekStart.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                Text(
-                    text = "$monthLabel ${weekStart.year}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = { viewModel.nextWeek() }) {
-                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Week")
+                IconButton(onClick = { viewModel.resetToCurrentWeek() }) {
+                    Icon(Icons.Default.Today, contentDescription = "Current Week")
                 }
             }
 
@@ -118,6 +130,7 @@ fun DashboardScreen(
                 items(habitsWithRecords) { item ->
                     HabitCard(
                         model = item,
+                        weekStart = weekStart,
                         onToggle = { dayOffsetIndex -> 
                             showInputDialog = Triple(item.habit.id, dayOffsetIndex, item.habit)
                         },
@@ -185,6 +198,7 @@ fun DashboardScreen(
 @Composable
 fun HabitCard(
     model: HabitUiModel,
+    weekStart: LocalDate,
     onToggle: (Int) -> Unit,
     onClick: () -> Unit
 ) {
@@ -216,20 +230,22 @@ fun HabitCard(
                 fontWeight = FontWeight.Bold,
                 color = Color(model.habit.color),
                 modifier = Modifier.weight(1f),
-                fontSize = 12.sp,
-                maxLines = 1
+                fontSize = 12.sp
             )
 
             Row(horizontalArrangement = Arrangement.End) {
                 model.recentRecords.forEachIndexed { index, record ->
                     val isActiveDay = model.activeDays[index]
+                    val cellDate = weekStart.plusDays(index.toLong())
+                    val isFuture = cellDate.isAfter(LocalDate.now())
+                    val isClickable = isActiveDay && !isFuture
                     
                     Box(
                         modifier = Modifier
                             .width(42.dp)
                             .height(42.dp)
                             .padding(end = 4.dp)
-                            .then(if (isActiveDay) Modifier.clickable { onToggle(index) } else Modifier),
+                            .then(if (isClickable) Modifier.clickable { onToggle(index) } else Modifier),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!isActiveDay) {

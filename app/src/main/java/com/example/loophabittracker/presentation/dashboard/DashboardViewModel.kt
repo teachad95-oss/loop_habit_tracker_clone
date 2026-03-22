@@ -44,6 +44,10 @@ class DashboardViewModel @Inject constructor(
         _currentWeekStart.value = _currentWeekStart.value.plusWeeks(1)
     }
 
+    fun resetToCurrentWeek() {
+        _currentWeekStart.value = LocalDate.now().with(DayOfWeek.MONDAY)
+    }
+
     private fun isHabitActive(habit: Habit, date: LocalDate): Boolean {
         return when (habit.frequencyDenominator) {
             "WEEK" -> {

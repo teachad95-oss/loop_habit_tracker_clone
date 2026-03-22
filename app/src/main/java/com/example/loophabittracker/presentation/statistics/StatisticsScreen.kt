@@ -1,18 +1,19 @@
 package com.example.loophabittracker.presentation.statistics
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,17 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.column.columnChart
-import com.patrykandpatrick.vico.compose.chart.line.lineChart
-import com.patrykandpatrick.vico.core.chart.values.AxisValuesOverrider
-import com.patrykandpatrick.vico.core.entry.entryModelOf
-import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -43,7 +37,7 @@ fun StatisticsScreen(
     onNavigateToEdit: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val weekStart by viewModel.currentWeekStart.collectAsState()
+    val currentMonth by viewModel.currentMonth.collectAsState()
 
     LaunchedEffect(habitId) {
         viewModel.loadStatistics(habitId)
@@ -72,86 +66,65 @@ fun StatisticsScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
         ) {
-            val monthLabel = weekStart.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            val monthLabel = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
 
-            // Week Selector Header
+            // Month Selector Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                IconButton(onClick = { viewModel.previousWeek() }) {
-                    Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Week", tint = habitColor)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { viewModel.previousMonth() }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Month", tint = habitColor)
+                    }
+                    Text(
+                        text = "$monthLabel ${currentMonth.year}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = habitColor
+                    )
+                    IconButton(onClick = { viewModel.nextMonth() }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Month", tint = habitColor)
+                    }
                 }
-                Text(
-                    text = "Week of $monthLabel ${weekStart.dayOfMonth}, ${weekStart.year}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = habitColor
-                )
-                IconButton(onClick = { viewModel.nextWeek() }) {
-                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Week", tint = habitColor)
+                IconButton(onClick = { viewModel.resetToCurrentMonth() }) {
+                    Icon(Icons.Default.Today, contentDescription = "Current Month", tint = habitColor)
                 }
             }
             Divider(modifier = Modifier.padding(bottom = 8.dp))
 
-            // Focus Week Overview
-            SectionTitle("Selected Week", habitColor)
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                OverviewStat("Target Hits", "${uiState.weekCompletions}", habitColor)
-                OverviewStat("Penalty Deductions", "-${String.format("%.0f", uiState.weekPenalty)}", Color.Red)
-            }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            // Lifetime Overview Section
-            SectionTitle("Lifetime Overview", habitColor)
+            // Section 1: Monthly Summary
+            SectionTitle("Monthly Overview", habitColor)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                OverviewStat("Score", "${String.format("%.0f", uiState.strength)}%", habitColor)
-                OverviewStat("Total Success", "${uiState.totalCompletions}", habitColor)
-                OverviewStat("Total Penalty", "-${String.format("%.0f", uiState.totalPenalty)}", Color.Red)
+                OverviewStat("Active Days", "${uiState.totalDaysInMonth}", habitColor)
+                OverviewStat("Failures", "${uiState.totalFailures}", MaterialTheme.colorScheme.onSurfaceVariant)
+                OverviewStat("Penalty", "-${String.format("%.0f", uiState.totalPenalty)}", Color.Red)
             }
             Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // Score Chart
-            SectionTitle("Trailing Score (30-day)", habitColor)
-            if (uiState.recentScores.isNotEmpty()) {
-                val chartEntryModel = entryModelOf(*uiState.recentScores.toTypedArray())
-                Chart(
-                    chart = lineChart(
-                        axisValuesOverrider = AxisValuesOverrider.fixed(minY = 0f, maxY = 100f)
-                    ),
-                    model = chartEntryModel,
-                    startAxis = rememberStartAxis(),
-                    bottomAxis = rememberBottomAxis(),
-                    modifier = Modifier.height(200.dp).padding(16.dp)
-                )
+            // Section 2: Full Calendar Grid
+            SectionTitle("Calendar Breakdown", habitColor)
+            
+            val blankDays = currentMonth.atDay(1).dayOfWeek.value - 1
+            
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(7),
+                modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(blankDays) {
+                    Box(modifier = Modifier.aspectRatio(1f)) // Empty padding
+                }
+                items(uiState.calendarData) { dayData ->
+                    CalendarDayBox(dayData, habitColor, uiState.habit?.isMeasurable == true, uiState.habit?.unit ?: "")
+                }
             }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            // History Chart
-            SectionTitle("Completions (6-Months)", habitColor)
-            if (uiState.historyCounts.isNotEmpty()) {
-                val barEntryModel = entryModelOf(*uiState.historyCounts.toTypedArray())
-                Chart(
-                    chart = columnChart(),
-                    model = barEntryModel,
-                    bottomAxis = rememberBottomAxis(),
-                    modifier = Modifier.height(200.dp).padding(16.dp)
-                )
-            }
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-
-            // Calendar
-            SectionTitle("Calendar Output", habitColor)
-            CalendarHeatmap(uiState.calendarRecords, habitColor, weekStart)
         }
     }
 }
@@ -162,8 +135,8 @@ fun SectionTitle(title: String, color: Color) {
         text = title,
         color = color,
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Medium,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
     )
 }
 
@@ -176,28 +149,54 @@ fun OverviewStat(label: String, value: String, valueColor: Color) {
 }
 
 @Composable
-fun CalendarHeatmap(records: Map<Long, Boolean>, activeColor: Color, weekStart: LocalDate) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(7),
-        modifier = Modifier.fillMaxWidth().height(250.dp).padding(16.dp),
-        userScrollEnabled = false
+fun CalendarDayBox(data: CalendarDayData, activeColor: Color, isMeasurable: Boolean, unit: String) {
+    val dayStr = data.date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).uppercase()
+    val bgColor = if (data.isCompleted) activeColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f)
+    val borderColor = if (data.isCompleted) activeColor else MaterialTheme.colorScheme.outlineVariant
+    
+    Box(
+        modifier = Modifier
+            .aspectRatio(0.85f)
+            .clip(RoundedCornerShape(6.dp))
+            .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(6.dp))
     ) {
-        items(35) { i ->
-            val date = weekStart.plusDays(6).minusDays((34 - i).toLong())
-            val isCompleted = records[date.toEpochDay()] == true
-            Box(
-                modifier = Modifier
-                    .padding(2.dp)
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(if (isCompleted) activeColor else MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = date.dayOfMonth.toString(),
-                    fontSize = 12.sp,
-                    color = if (isCompleted) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxSize().padding(2.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Top: Weekday + Date
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = dayStr, fontSize = 8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(text = data.date.dayOfMonth.toString(), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            
+            // Middle: Value / Marker
+            if (data.isFuture) {
+                Text(text = "-", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                if (isMeasurable) {
+                    val displayVal = if (data.value != null) {
+                        if (data.value % 1.0f == 0f) data.value.toInt().toString() else data.value.toString()
+                    } else "0"
+                    
+                    val color = if (data.isCompleted) activeColor else MaterialTheme.colorScheme.onSurfaceVariant
+                    Text(text = "$displayVal\n$unit", fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = color, textAlign = TextAlign.Center, lineHeight = 9.sp)
+                } else {
+                    if (data.isCompleted) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = activeColor, modifier = Modifier.size(16.dp))
+                    } else {
+                        Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+            
+            // Bottom: Penalty
+            if (data.isMissed && data.penalty > 0f) {
+                Text(text = "-${data.penalty}", fontSize = 9.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+            } else {
+                Spacer(modifier = Modifier.height(1.dp))
             }
         }
     }
