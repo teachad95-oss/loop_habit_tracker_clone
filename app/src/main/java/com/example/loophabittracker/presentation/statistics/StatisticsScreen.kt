@@ -79,7 +79,7 @@ fun StatisticsScreen(
                 OverviewStat("Year", "+${String.format("%.0f", uiState.scoreYear)}%", habitColor)
                 OverviewStat("Total", "${uiState.totalCompletions}", habitColor)
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Score Chart
             SectionTitle("Score", habitColor)
@@ -95,7 +95,7 @@ fun StatisticsScreen(
                     modifier = Modifier.height(200.dp).padding(16.dp)
                 )
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // History Chart
             SectionTitle("History", habitColor)
@@ -108,7 +108,7 @@ fun StatisticsScreen(
                     modifier = Modifier.height(200.dp).padding(16.dp)
                 )
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Divider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Calendar
             SectionTitle("Calendar", habitColor)
